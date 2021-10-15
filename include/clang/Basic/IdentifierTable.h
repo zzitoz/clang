@@ -1,9 +1,8 @@
 //===- IdentifierTable.h - Hash table for identifier lookup -----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -751,6 +750,12 @@ public:
     return getIdentifierInfoFlag() == ZeroArg;
   }
 
+  /// If this selector is the specific keyword selector described by Names.
+  bool isKeywordSelector(ArrayRef<StringRef> Names) const;
+
+  /// If this selector is the specific unary selector described by Name.
+  bool isUnarySelector(StringRef Name) const;
+
   unsigned getNumArgs() const;
 
   /// Retrieve the identifier at a given position in the selector.
@@ -938,9 +943,6 @@ struct DenseMapInfo<clang::Selector> {
     return LHS == RHS;
   }
 };
-
-template <>
-struct isPodLike<clang::Selector> { static const bool value = true; };
 
 template<>
 struct PointerLikeTypeTraits<clang::Selector> {

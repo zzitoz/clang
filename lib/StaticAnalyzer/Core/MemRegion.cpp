@@ -1,9 +1,8 @@
 //===- MemRegion.cpp - Abstract memory regions for static analysis --------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -507,7 +506,7 @@ void ElementRegion::dumpToStream(raw_ostream &os) const {
 }
 
 void FieldRegion::dumpToStream(raw_ostream &os) const {
-  os << superRegion << "->" << *getDecl();
+  os << superRegion << "." << *getDecl();
 }
 
 void ObjCIvarRegion::dumpToStream(raw_ostream &os) const {
@@ -845,6 +844,7 @@ getStackOrCaptureRegionForDeclContext(const LocationContext *LC,
 
 const VarRegion* MemRegionManager::getVarRegion(const VarDecl *D,
                                                 const LocationContext *LC) {
+  D = D->getCanonicalDecl();
   const MemRegion *sReg = nullptr;
 
   if (D->hasGlobalStorage() && !D->isStaticLocal()) {
@@ -931,6 +931,7 @@ const VarRegion* MemRegionManager::getVarRegion(const VarDecl *D,
 
 const VarRegion *MemRegionManager::getVarRegion(const VarDecl *D,
                                                 const MemRegion *superR) {
+  D = D->getCanonicalDecl();
   return getSubRegion<VarRegion>(D, superR);
 }
 
@@ -1008,6 +1009,7 @@ MemRegionManager::getElementRegion(QualType elementType, NonLoc Idx,
 
 const FunctionCodeRegion *
 MemRegionManager::getFunctionCodeRegion(const NamedDecl *FD) {
+  // To think: should we canonicalize the declaration here?
   return getSubRegion<FunctionCodeRegion>(FD, getCodeRegion());
 }
 
@@ -1073,7 +1075,7 @@ MemRegionManager::getCXXBaseObjectRegion(const CXXRecordDecl *RD,
                                          const SubRegion *Super,
                                          bool IsVirtual) {
   if (isa<TypedValueRegion>(Super)) {
-    assert(isValidBaseClass(RD, dyn_cast<TypedValueRegion>(Super), IsVirtual));
+    assert(isValidBaseClass(RD, cast<TypedValueRegion>(Super), IsVirtual));
     (void)&isValidBaseClass;
 
     if (IsVirtual) {
@@ -1105,9 +1107,8 @@ MemRegionManager::getCXXThisRegion(QualType thisPointerTy,
   // FIXME: when operator() of lambda is analyzed as a top level function and
   // 'this' refers to a this to the enclosing scope, there is no right region to
   // return.
-  while (!LC->inTopFrame() &&
-         (!D || D->isStatic() ||
-          PT != D->getThisType(getContext())->getAs<PointerType>())) {
+  while (!LC->inTopFrame() && (!D || D->isStatic() ||
+                               PT != D->getThisType()->getAs<PointerType>())) {
     LC = LC->getParent();
     D = dyn_cast<CXXMethodDecl>(LC->getDecl());
   }
@@ -1425,6 +1426,7 @@ static RegionOffset calculateOffset(const MemRegion *R) {
     case MemRegion::FieldRegionKind: {
       const auto *FR = cast<FieldRegion>(R);
       R = FR->getSuperRegion();
+      assert(R);
 
       const RecordDecl *RD = FR->getDecl()->getParent();
       if (RD->isUnion() || !RD->isCompleteDefinition()) {

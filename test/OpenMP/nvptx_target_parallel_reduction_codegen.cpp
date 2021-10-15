@@ -72,7 +72,7 @@ int bar(int n){
   // CHECK: [[E_CAST:%.+]] = bitcast double* [[E]] to i8*
   // CHECK: store i8* [[E_CAST]], i8** [[PTR1]], align
   // CHECK: [[ARG_RL:%.+]] = bitcast [[RLT]]* [[RL]] to i8*
-  // CHECK: [[RET:%.+]] = call i32 @__kmpc_nvptx_parallel_reduce_nowait(i32 {{.+}}, i32 1, i{{32|64}} {{4|8}}, i8* [[ARG_RL]], void (i8*, i16, i16, i16)* [[SHUFFLE_REDUCE_FN:@.+]], void (i8*, i32)* [[WARP_COPY_FN:@.+]])
+  // CHECK: [[RET:%.+]] = call i32 @__kmpc_nvptx_parallel_reduce_nowait_v2(%struct.ident_t* @{{.+}}, i32 {{.+}}, i32 1, i{{32|64}} {{4|8}}, i8* [[ARG_RL]], void (i8*, i16, i16, i16)* [[SHUFFLE_REDUCE_FN:@.+]], void (i8*, i32)* [[WARP_COPY_FN:@.+]])
   // CHECK: [[CMP:%.+]] = icmp eq i32 [[RET]], 1
   // CHECK: br i1 [[CMP]], label
 
@@ -87,7 +87,7 @@ int bar(int n){
 
   //
   // Reduction function
-  // CHECK: define internal void [[REDUCTION_FUNC:@.+]](i8*, i8*)
+  // CHECK: define internal void [[REDUCTION_FUNC:@.+]](i8* %0, i8* %1)
   // CHECK: [[VAR_RHS_REF:%.+]] = getelementptr inbounds [[RLT]], [[RLT]]* [[RED_LIST_RHS:%.+]], i{{32|64}} 0, i{{32|64}} 0
   // CHECK: [[VAR_RHS_VOID:%.+]] = load i8*, i8** [[VAR_RHS_REF]],
   // CHECK: [[VAR_RHS:%.+]] = bitcast i8* [[VAR_RHS_VOID]] to double*
@@ -104,7 +104,7 @@ int bar(int n){
 
   //
   // Shuffle and reduce function
-  // CHECK: define internal void [[SHUFFLE_REDUCE_FN]](i8*, i16 {{.*}}, i16 {{.*}}, i16 {{.*}})
+  // CHECK: define internal void [[SHUFFLE_REDUCE_FN]](i8* %0, i16 {{.*}}, i16 {{.*}}, i16 {{.*}})
   // CHECK: [[REMOTE_RED_LIST:%.+]] = alloca [[RLT]], align
   // CHECK: [[REMOTE_ELT:%.+]] = alloca double
   //
@@ -181,7 +181,7 @@ int bar(int n){
 
   //
   // Inter warp copy function
-  // CHECK: define internal void [[WARP_COPY_FN]](i8*, i32)
+  // CHECK: define internal void [[WARP_COPY_FN]](i8* %0, i32 %1)
   // CHECK-DAG: [[LANEID:%.+]] = and i32 {{.+}}, 31
   // CHECK-DAG: [[WARPID:%.+]] = ashr i32 {{.+}}, 5
   // CHECK-DAG: [[RED_LIST:%.+]] = bitcast i8* {{.+}} to [[RLT]]*
@@ -231,7 +231,6 @@ int bar(int n){
   // CHECK: br label {{%?}}[[READ_CONT]]
   //
   // CHECK: [[READ_CONT]]
-  // CHECK: call void @__kmpc_barrier(%struct.ident_t* @
   // CHECK: [[NEXT:%.+]] = add nsw i32 [[CNT]], 1
   // CHECK: store i32 [[NEXT]], i32* [[CNT_ADDR]],
   // CHECK: br label
@@ -273,7 +272,7 @@ int bar(int n){
   // CHECK: [[D_CAST:%.+]] = bitcast float* [[D]] to i8*
   // CHECK: store i8* [[D_CAST]], i8** [[PTR2]], align
   // CHECK: [[ARG_RL:%.+]] = bitcast [[RLT]]* [[RL]] to i8*
-  // CHECK: [[RET:%.+]] = call i32 @__kmpc_nvptx_parallel_reduce_nowait(i32 {{.+}}, i32 2, i{{32|64}} {{8|16}}, i8* [[ARG_RL]], void (i8*, i16, i16, i16)* [[SHUFFLE_REDUCE_FN:@.+]], void (i8*, i32)* [[WARP_COPY_FN:@.+]])
+  // CHECK: [[RET:%.+]] = call i32 @__kmpc_nvptx_parallel_reduce_nowait_v2(%struct.ident_t* @{{.+}}, i32 {{.+}}, i32 2, i{{32|64}} {{8|16}}, i8* [[ARG_RL]], void (i8*, i16, i16, i16)* [[SHUFFLE_REDUCE_FN:@.+]], void (i8*, i32)* [[WARP_COPY_FN:@.+]])
   // CHECK: [[CMP:%.+]] = icmp eq i32 [[RET]], 1
   // CHECK: br i1 [[CMP]], label
   // CHECK: [[C_INV8:%.+]] = load i8, i8* [[C_IN:%.+]], align
@@ -294,7 +293,7 @@ int bar(int n){
 
   //
   // Reduction function
-  // CHECK: define internal void [[REDUCTION_FUNC:@.+]](i8*, i8*)
+  // CHECK: define internal void [[REDUCTION_FUNC:@.+]](i8* %0, i8* %1)
   // CHECK: [[VAR1_RHS_REF:%.+]] = getelementptr inbounds [[RLT]], [[RLT]]* [[RED_LIST_RHS:%.+]], i{{32|64}} 0, i{{32|64}} 0
   // CHECK: [[VAR1_RHS:%.+]] = load i8*, i8** [[VAR1_RHS_REF]],
   //
@@ -325,7 +324,7 @@ int bar(int n){
 
   //
   // Shuffle and reduce function
-  // CHECK: define internal void [[SHUFFLE_REDUCE_FN]](i8*, i16 {{.*}}, i16 {{.*}}, i16 {{.*}})
+  // CHECK: define internal void [[SHUFFLE_REDUCE_FN]](i8* %0, i16 {{.*}}, i16 {{.*}}, i16 {{.*}})
   // CHECK: [[REMOTE_RED_LIST:%.+]] = alloca [[RLT]], align
   // CHECK: [[REMOTE_ELT1:%.+]] = alloca i8
   // CHECK: [[REMOTE_ELT2:%.+]] = alloca float
@@ -424,7 +423,7 @@ int bar(int n){
 
   //
   // Inter warp copy function
-  // CHECK: define internal void [[WARP_COPY_FN]](i8*, i32)
+  // CHECK: define internal void [[WARP_COPY_FN]](i8* %0, i32 %1)
   // CHECK-DAG: [[LANEID:%.+]] = and i32 {{.+}}, 31
   // CHECK-DAG: [[WARPID:%.+]] = ashr i32 {{.+}}, 5
   // CHECK-DAG: [[RED_LIST:%.+]] = bitcast i8* {{.+}} to [[RLT]]*
@@ -468,7 +467,6 @@ int bar(int n){
   //
   // CHECK: [[READ_CONT]]
   // CHECK: call void @__kmpc_barrier(%struct.ident_t* @
-  // CHECK: call void @__kmpc_barrier(%struct.ident_t* @
   // CHECK: [[IS_WARP_MASTER:%.+]] = icmp eq i32 [[LANEID]], 0
   // CHECK: br i1 [[IS_WARP_MASTER]], label {{%?}}[[DO_COPY:.+]], label {{%?}}[[COPY_ELSE:.+]]
   //
@@ -507,7 +505,6 @@ int bar(int n){
   // CHECK: br label {{%?}}[[READ_CONT]]
   //
   // CHECK: [[READ_CONT]]
-  // CHECK: call void @__kmpc_barrier(%struct.ident_t* @
   // CHECK: ret
 
 
@@ -560,7 +557,7 @@ int bar(int n){
   // CHECK: [[B_CAST:%.+]] = bitcast i16* [[B]] to i8*
   // CHECK: store i8* [[B_CAST]], i8** [[PTR2]], align
   // CHECK: [[ARG_RL:%.+]] = bitcast [[RLT]]* [[RL]] to i8*
-  // CHECK: [[RET:%.+]] = call i32 @__kmpc_nvptx_parallel_reduce_nowait(i32 {{.+}}, i32 2, i{{32|64}} {{8|16}}, i8* [[ARG_RL]], void (i8*, i16, i16, i16)* [[SHUFFLE_REDUCE_FN:@.+]], void (i8*, i32)* [[WARP_COPY_FN:@.+]])
+  // CHECK: [[RET:%.+]] = call i32 @__kmpc_nvptx_parallel_reduce_nowait_v2(%struct.ident_t* @{{.+}}, i32 {{.+}}, i32 2, i{{32|64}} {{8|16}}, i8* [[ARG_RL]], void (i8*, i16, i16, i16)* [[SHUFFLE_REDUCE_FN:@.+]], void (i8*, i32)* [[WARP_COPY_FN:@.+]])
   // CHECK: [[CMP:%.+]] = icmp eq i32 [[RET]], 1
   // CHECK: br i1 [[CMP]], label
 
@@ -593,7 +590,7 @@ int bar(int n){
 
   //
   // Reduction function
-  // CHECK: define internal void [[REDUCTION_FUNC:@.+]](i8*, i8*)
+  // CHECK: define internal void [[REDUCTION_FUNC:@.+]](i8* %0, i8* %1)
   // CHECK: [[VAR1_RHS_REF:%.+]] = getelementptr inbounds [[RLT]], [[RLT]]* [[RED_LIST_RHS:%.+]], i{{32|64}} 0, i{{32|64}} 0
   // CHECK: [[VAR1_RHS_VOID:%.+]] = load i8*, i8** [[VAR1_RHS_REF]],
   // CHECK: [[VAR1_RHS:%.+]] = bitcast i8* [[VAR1_RHS_VOID]] to i32*
@@ -638,7 +635,7 @@ int bar(int n){
 
   //
   // Shuffle and reduce function
-  // CHECK: define internal void [[SHUFFLE_REDUCE_FN]](i8*, i16 {{.*}}, i16 {{.*}}, i16 {{.*}})
+  // CHECK: define internal void [[SHUFFLE_REDUCE_FN]](i8* %0, i16 {{.*}}, i16 {{.*}}, i16 {{.*}})
   // CHECK: [[REMOTE_RED_LIST:%.+]] = alloca [[RLT]], align
   // CHECK: [[REMOTE_ELT1:%.+]] = alloca i32
   // CHECK: [[REMOTE_ELT2:%.+]] = alloca i16
@@ -739,7 +736,7 @@ int bar(int n){
 
   //
   // Inter warp copy function
-  // CHECK: define internal void [[WARP_COPY_FN]](i8*, i32)
+  // CHECK: define internal void [[WARP_COPY_FN]](i8* %0, i32 %1)
   // CHECK-DAG: [[LANEID:%.+]] = and i32 {{.+}}, 31
   // CHECK-DAG: [[WARPID:%.+]] = ashr i32 {{.+}}, 5
   // CHECK-DAG: [[RED_LIST:%.+]] = bitcast i8* {{.+}} to [[RLT]]*
@@ -823,7 +820,6 @@ int bar(int n){
   // CHECK: br label {{%?}}[[READ_CONT]]
   //
   // CHECK: [[READ_CONT]]
-  // CHECK: call void @__kmpc_barrier(%struct.ident_t* @
   // CHECK: ret
 
 #endif

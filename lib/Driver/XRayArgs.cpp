@@ -1,9 +1,8 @@
 //===--- XRayArgs.cpp - Arguments for XRay --------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 #include "clang/Driver/XRayArgs.h"
@@ -53,7 +52,7 @@ XRayArgs::XRayArgs(const ToolChain &TC, const ArgList &Args) {
     } else if (Triple.isOSFreeBSD() ||
                Triple.isOSOpenBSD() ||
                Triple.isOSNetBSD() ||
-               Triple.getOS() == llvm::Triple::Darwin) {
+               Triple.isMacOSX()) {
       if (Triple.getArch() != llvm::Triple::x86_64) {
         D.Diag(diag::err_drv_clang_unsupported)
             << (std::string(XRayInstrumentOption) + " on " + Triple.str());

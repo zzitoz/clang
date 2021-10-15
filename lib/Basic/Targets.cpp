@@ -1,9 +1,8 @@
 //===--- Targets.cpp - Implement target feature support -------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -26,7 +25,6 @@
 #include "Targets/MSP430.h"
 #include "Targets/Mips.h"
 #include "Targets/NVPTX.h"
-#include "Targets/Nios2.h"
 #include "Targets/OSTargets.h"
 #include "Targets/PNaCl.h"
 #include "Targets/PPC.h"
@@ -98,19 +96,6 @@ void addCygMingDefines(const LangOptions &Opts, MacroBuilder &Builder) {
       Builder.defineMacro(Twine("__") + CC, GCCSpelling);
     }
   }
-}
-
-void addMinGWDefines(const llvm::Triple &Triple, const LangOptions &Opts,
-                     MacroBuilder &Builder) {
-  DefineStd(Builder, "WIN32", Opts);
-  DefineStd(Builder, "WINNT", Opts);
-  if (Triple.isArch64Bit()) {
-    DefineStd(Builder, "WIN64", Opts);
-    Builder.defineMacro("__MINGW64__");
-  }
-  Builder.defineMacro("__MSVCRT__");
-  Builder.defineMacro("__MINGW32__");
-  addCygMingDefines(Opts, Builder);
 }
 
 //===----------------------------------------------------------------------===//
@@ -247,9 +232,6 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
   case llvm::Triple::msp430:
     return new MSP430TargetInfo(Triple, Opts);
 
-  case llvm::Triple::nios2:
-    return new LinuxTargetInfo<Nios2TargetInfo>(Triple, Opts);
-
   case llvm::Triple::mips:
     switch (os) {
     case llvm::Triple::Linux:
@@ -337,6 +319,8 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
       return new OpenBSDTargetInfo<PPC32TargetInfo>(Triple, Opts);
     case llvm::Triple::RTEMS:
       return new RTEMSTargetInfo<PPC32TargetInfo>(Triple, Opts);
+    case llvm::Triple::AIX:
+      return new AIXPPC32TargetInfo(Triple, Opts);
     default:
       return new PPC32TargetInfo(Triple, Opts);
     }
@@ -353,6 +337,8 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
       return new FreeBSDTargetInfo<PPC64TargetInfo>(Triple, Opts);
     case llvm::Triple::NetBSD:
       return new NetBSDTargetInfo<PPC64TargetInfo>(Triple, Opts);
+    case llvm::Triple::AIX:
+      return new AIXPPC64TargetInfo(Triple, Opts);
     default:
       return new PPC64TargetInfo(Triple, Opts);
     }
@@ -377,15 +363,26 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
     return new AMDGPUTargetInfo(Triple, Opts);
 
   case llvm::Triple::riscv32:
-    // TODO: add cases for FreeBSD, NetBSD, RTEMS once tested.
-    if (os == llvm::Triple::Linux)
+    // TODO: add cases for NetBSD, RTEMS once tested.
+    switch (os) {
+    case llvm::Triple::FreeBSD:
+      return new FreeBSDTargetInfo<RISCV32TargetInfo>(Triple, Opts);
+    case llvm::Triple::Linux:
       return new LinuxTargetInfo<RISCV32TargetInfo>(Triple, Opts);
-    return new RISCV32TargetInfo(Triple, Opts);
+    default:
+      return new RISCV32TargetInfo(Triple, Opts);
+    }
+
   case llvm::Triple::riscv64:
-    // TODO: add cases for FreeBSD, NetBSD, RTEMS once tested.
-    if (os == llvm::Triple::Linux)
+    // TODO: add cases for NetBSD, RTEMS once tested.
+    switch (os) {
+    case llvm::Triple::FreeBSD:
+      return new FreeBSDTargetInfo<RISCV64TargetInfo>(Triple, Opts);
+    case llvm::Triple::Linux:
       return new LinuxTargetInfo<RISCV64TargetInfo>(Triple, Opts);
-    return new RISCV64TargetInfo(Triple, Opts);
+    default:
+      return new RISCV64TargetInfo(Triple, Opts);
+    }
 
   case llvm::Triple::sparc:
     switch (os) {
@@ -572,19 +569,33 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
   case llvm::Triple::wasm32:
     if (Triple.getSubArch() != llvm::Triple::NoSubArch ||
         Triple.getVendor() != llvm::Triple::UnknownVendor ||
-        Triple.getOS() != llvm::Triple::UnknownOS ||
-        Triple.getEnvironment() != llvm::Triple::UnknownEnvironment ||
-        !(Triple.isOSBinFormatELF() || Triple.isOSBinFormatWasm()))
+        !Triple.isOSBinFormatWasm())
       return nullptr;
-    return new WebAssemblyOSTargetInfo<WebAssembly32TargetInfo>(Triple, Opts);
+    switch (Triple.getOS()) {
+      case llvm::Triple::WASI:
+        return new WASITargetInfo<WebAssembly32TargetInfo>(Triple, Opts);
+      case llvm::Triple::Emscripten:
+        return new EmscriptenTargetInfo<WebAssembly32TargetInfo>(Triple, Opts);
+      case llvm::Triple::UnknownOS:
+        return new WebAssemblyOSTargetInfo<WebAssembly32TargetInfo>(Triple, Opts);
+      default:
+        return nullptr;
+    }
   case llvm::Triple::wasm64:
     if (Triple.getSubArch() != llvm::Triple::NoSubArch ||
         Triple.getVendor() != llvm::Triple::UnknownVendor ||
-        Triple.getOS() != llvm::Triple::UnknownOS ||
-        Triple.getEnvironment() != llvm::Triple::UnknownEnvironment ||
-        !(Triple.isOSBinFormatELF() || Triple.isOSBinFormatWasm()))
+        !Triple.isOSBinFormatWasm())
       return nullptr;
-    return new WebAssemblyOSTargetInfo<WebAssembly64TargetInfo>(Triple, Opts);
+    switch (Triple.getOS()) {
+      case llvm::Triple::WASI:
+        return new WASITargetInfo<WebAssembly64TargetInfo>(Triple, Opts);
+      case llvm::Triple::Emscripten:
+        return new EmscriptenTargetInfo<WebAssembly64TargetInfo>(Triple, Opts);
+      case llvm::Triple::UnknownOS:
+        return new WebAssemblyOSTargetInfo<WebAssembly64TargetInfo>(Triple, Opts);
+      default:
+        return nullptr;
+    }
 
   case llvm::Triple::renderscript32:
     return new LinuxTargetInfo<RenderScript32TargetInfo>(Triple, Opts);

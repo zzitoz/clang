@@ -1,9 +1,8 @@
 //===- CompilationDatabase.cpp --------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -227,6 +226,16 @@ struct FilterUnusedFlags {
   }
 };
 
+std::string GetClangToolCommand() {
+  static int Dummy;
+  std::string ClangExecutable =
+      llvm::sys::fs::getMainExecutable("clang", (void *)&Dummy);
+  SmallString<128> ClangToolPath;
+  ClangToolPath = llvm::sys::path::parent_path(ClangExecutable);
+  llvm::sys::path::append(ClangToolPath, "clang-tool");
+  return ClangToolPath.str();
+}
+
 } // namespace
 
 /// Strips any positional args and possible argv[0] from a command-line
@@ -266,9 +275,10 @@ static bool stripPositionalArgs(std::vector<const char *> Args,
       Diagnostics));
   NewDriver->setCheckInputsExist(false);
 
-  // This becomes the new argv[0]. The value is actually not important as it
-  // isn't used for invoking Tools.
-  Args.insert(Args.begin(), "clang-tool");
+  // This becomes the new argv[0]. The value is used to detect libc++ include
+  // dirs on Mac, it isn't used for other platforms.
+  std::string Argv0 = GetClangToolCommand();
+  Args.insert(Args.begin(), Argv0.c_str());
 
   // By adding -c, we force the driver to treat compilation as the last phase.
   // It will then issue warnings via Diagnostics about un-used options that
@@ -346,7 +356,7 @@ FixedCompilationDatabase::loadFromCommandLine(int &Argc,
   std::vector<std::string> StrippedArgs;
   if (!stripPositionalArgs(CommandLine, StrippedArgs, ErrorMsg))
     return nullptr;
-  return llvm::make_unique<FixedCompilationDatabase>(Directory, StrippedArgs);
+  return std::make_unique<FixedCompilationDatabase>(Directory, StrippedArgs);
 }
 
 std::unique_ptr<FixedCompilationDatabase>
@@ -360,13 +370,13 @@ FixedCompilationDatabase::loadFromFile(StringRef Path, std::string &ErrorMsg) {
   }
   std::vector<std::string> Args{llvm::line_iterator(**File),
                                 llvm::line_iterator()};
-  return llvm::make_unique<FixedCompilationDatabase>(
+  return std::make_unique<FixedCompilationDatabase>(
       llvm::sys::path::parent_path(Path), std::move(Args));
 }
 
 FixedCompilationDatabase::
 FixedCompilationDatabase(Twine Directory, ArrayRef<std::string> CommandLine) {
-  std::vector<std::string> ToolCommandLine(1, "clang-tool");
+  std::vector<std::string> ToolCommandLine(1, GetClangToolCommand());
   ToolCommandLine.insert(ToolCommandLine.end(),
                          CommandLine.begin(), CommandLine.end());
   CompileCommands.emplace_back(Directory, StringRef(),

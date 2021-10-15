@@ -1,9 +1,8 @@
 //===--- USRFindingAction.cpp - Clang refactoring library -----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -103,6 +102,10 @@ public:
 
 private:
   void handleCXXRecordDecl(const CXXRecordDecl *RecordDecl) {
+    if (!RecordDecl->getDefinition()) {
+      USRSet.insert(getUSRForDecl(RecordDecl));
+      return;
+    }
     RecordDecl = RecordDecl->getDefinition();
     if (const auto *ClassTemplateSpecDecl =
             dyn_cast<ClassTemplateSpecializationDecl>(RecordDecl))
@@ -265,7 +268,7 @@ private:
 };
 
 std::unique_ptr<ASTConsumer> USRFindingAction::newASTConsumer() {
-  return llvm::make_unique<NamedDeclFindingConsumer>(
+  return std::make_unique<NamedDeclFindingConsumer>(
       SymbolOffsets, QualifiedNames, SpellingNames, USRList, Force,
       ErrorOccurred);
 }
